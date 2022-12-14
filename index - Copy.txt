@@ -1,0 +1,130 @@
+const express = require("express");
+const app = express();
+const port = 3000;
+const { networkInterfaces } = require('os');
+const nets = networkInterfaces();
+const results = Object.create(null); // Or just '{}', an empty object
+
+
+app.listen(process.env.PORT || port, () => {
+    console.log(`Listening at http://localhost:${port}`)
+	
+	for (const name of Object.keys(nets)) {
+        for (const net of nets[name]) {
+            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+            // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
+            const familyV4Value = typeof net.family === 'string' ? 'IPv4' : 4
+            if (net.family === familyV4Value && !net.internal) {
+                if (!results[name]) {
+                    results[name] = [];
+                }
+                results[name].push(net.address);
+            }
+        }
+    }
+    console.log(results);
+	console.log(`${port}`);
+	console.log(`${process.env.PORT}`);
+});
+
+process.env.BASE_URL = 'http://localhost:3000';
+process.env.client_id = 'LdAY83PSgHaVKDm5Tyn2vq9e5QqlH7lC';
+process.env.issuer_Base_URL = 'https://dev-264uwjwu6c8xz02x.us.auth0.com';
+//process.env.SECRET = 'secret.txt';
+var { auth, requiresAuth } = require('express-openid-connect');
+
+app.use(
+  auth({
+    authRequired: false,
+  })
+);
+
+app.use(
+    requiresAuth({
+        authorizationParams: {
+          response_type: 'code',
+          audience: 'https://google.com',
+          scope: 'openid profile email read:products',
+        },
+    })
+);
+
+//app.use(auth());
+/*app.get('/', requiresAuth(), async (req, res) => {
+    console.log(process.env.SECRET)
+    res.send(`hello ${req.oidc.user.sub} ${req.oidc.user.name} ${req.oidc.isAuthenticated()} <a href='http://localhost:3000/logout?federated'>logout</a>`);
+});*/
+
+app.get('/signup', (req, res) => {
+    console.log("admin page - no auth");
+    res.send('admin page - no auth');
+});
+
+app.get('/user', requiresAuth(), async (req, res) => {
+    
+    const userInfo = await req.oidc.fetchUserInfo();
+    res.send(userInfo.email);
+});
+
+app.get('/admin', (req, res) => {
+    console.log("admin page - no auth");
+    res.send('admin page - no auth');
+})
+
+var axios = require("axios").default;
+
+/*var options = {
+  method: 'POST',
+  url: 'https://dev-264uwjwu6c8xz02x.us.auth0.com/oauth/token',
+  headers: {'content-type': 'application/x-www-form-urlencoded'},
+  data: new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: 'LdAY83PSgHaVKDm5Tyn2vq9e5QqlH7lC',
+    client_secret: 'REKd60vb8gC-iNZ2V0cXImVYlQ7TV4VKG4wLKCJWnklf7jvpROXgsDrOKZNbHGUy',
+    audience: 'https://group3.uncc.edu'
+  })
+};
+
+axios.request(options).then(function (response) {
+//  console.log(response.data);
+}).catch(function (error) {
+  console.error(error);
+});*/
+
+/*var options = {
+  method: 'GET',
+  url: 'http://your-domain.com/api_path',
+  headers: {authorization: 'Bearer YOUR_ACCESS_TOKEN_HERE'}
+};
+
+axios.request(options).then(function (response) {
+  console.log(response.data);
+}).catch(function (error) {
+  console.error(error);
+});*/
+
+var { auth, requiredScopes } = require('express-oauth2-jwt-bearer');
+
+// Authorization middleware. When used, the Access Token must
+// exist and be verified against the Auth0 JSON Web Key Set.
+// process.env.TOKEN_SIGNING_ALG = 'HS256';
+const checkJwt = auth({
+  audience: 'https://group3.uncc.edu',
+  issuerBaseURL: `https://dev-264uwjwu6c8xz02x.us.auth0.com/`
+});
+
+// This route doesn't need authentication
+app.get('/api/public', function(req, res) {
+    res.json({
+      message: 'Hello from a public endpoint! You don\'t need to be authenticated to see this.'
+    });
+  });
+  
+  // This route needs authentication
+  app.get('/api/private', checkJwt, function(req, res) {
+    res.json({
+      message: 'Hello from a private endpoint! You need to be authenticated to see this.'
+    });
+  });
+
+  //jwt.verify(token, MYSECRET, { algorithms: ['RS256'] });
