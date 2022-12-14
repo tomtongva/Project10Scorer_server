@@ -48,9 +48,11 @@ app.get('/api/public', function(req, res) {
   });
   
   // This route needs authentication
-  app.get('/api/private', checkJwt, function(req, res) {
+  app.post('/api/private', checkJwt, function(req, res) {
+    console.log(req.auth.token)
     res.json({
-      message: 'Hello from a private endpoint! You need to be authenticated to see this.'
+      message: 'Hello from a private endpoint! You need to be authenticated to see this.',
+      authHeader: req.auth.token
     });
   });
 
@@ -81,7 +83,7 @@ const config = {
 app.use(auth(config));
 
 //app.use(auth());
-app.get('/', requiresAuth(), async (req, res) => {
+app.get('/', requiresAuth(), async (req, res) => { // this is how auth0 does user authentication, it will redirect user to login page if user is not authenticated
     console.log(process.env.SECRET)
     res.send(`hello ${req.oidc.user.sub} ${req.oidc.user.name} ${req.oidc.isAuthenticated()} <a href='http://localhost:3000/v2/logout?federated'>logout</a>`);
 });
@@ -160,7 +162,7 @@ app.post('/api/login', async(req, res) => {
   var responseData = "something went wrong - no data set";
   await axios.request(options).then(function (response) {
     responseData = response.data;
-    console.log(responseData);
+    console.log(response.headers);
   }).catch(function (error) {
     console.error(error);
     res.send("something went wrong");
@@ -168,6 +170,33 @@ app.post('/api/login', async(req, res) => {
 
   res.send(responseData);
 
+});
+
+app.post('/api/logout', async(req, res) => {
+  console.log("logging out " + req.body);
+  var options = {
+    method: 'POST',
+    url: 'https://dev-264uwjwu6c8xz02x.us.auth0.com/logout',
+    headers: {'content-type': 'application/json'},
+    data: {
+      client_id: 'bSPhMzpoeHixOqvV0nwZ5BCs36nqKGdk',
+      client_secret:"avUB7bhIETRsK-wD3JCdFISTaetZvEksV6m-S0q_lCqd99zINb37BbSKspjp_Wik",
+      connection: 'email',
+      email: req.body.email,
+      send: 'code'
+    }
+  }
+  
+  var responseData = "something went wrong - no data set";
+  await axios.request(options).then(function (response) {
+    responseData = "done!!!";
+    console.log(response.headers);
+  }).catch(function (error) {
+    console.error(error);
+    res.send("something went wrong");
+  });
+
+  res.send({message : responseData});
 });
 /*
 var options = {
